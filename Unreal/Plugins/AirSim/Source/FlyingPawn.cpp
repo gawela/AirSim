@@ -27,6 +27,7 @@ void AFlyingPawn::initializeForBeginPlay()
 
 void AFlyingPawn::setStencilIDs()
 {
+	/*
     TArray<AActor*> foundActors;
     UAirBlueprintLib::FindAllActor<AActor>(this, foundActors);
     TArray<UStaticMeshComponent*> components;
@@ -39,6 +40,7 @@ void AFlyingPawn::setStencilIDs()
             components[0]->MarkRenderStateDirty();
         }
     }
+	*/
 }
 
 void AFlyingPawn::reset()
