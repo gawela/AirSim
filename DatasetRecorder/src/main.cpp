@@ -58,22 +58,22 @@ private:
 	RandomGeneratorGaussianF rand_xy_, rand_z_, rand_pitch_, rand_yaw_, rand_roll_;
 };
 
-void readMatrixFromFile(const std::string& filename, Eigen::MatrixXd* out_matrix) {
+void readMatrixFromFile(const std::string& filename, Eigen::MatrixXf* out_matrix) {
 	std::ifstream indata;
 	indata.open(filename);
 	std::string line;
-	std::vector<double> values;
+	std::vector<float> values;
 	int rows = 0;
 	while (std::getline(indata, line)) {
 		std::stringstream lineStream(line);
 		std::string cell;
 		while (std::getline(lineStream, cell, ',')) {
-			values.push_back(std::stod(cell));
+			values.push_back(std::stof(cell));
 		}
 		++rows;
 	}
 	//out_matrix->resize(rows, values.size() / rows);
-	(*out_matrix) = Eigen::Map<const Eigen::Matrix<typename Eigen::MatrixXd::Scalar, Eigen::MatrixXd::RowsAtCompileTime, Eigen::MatrixXd::ColsAtCompileTime, Eigen::RowMajor>>(values.data(), rows, values.size() / rows);
+	(*out_matrix) = Eigen::Map<const Eigen::Matrix<typename Eigen::MatrixXf::Scalar, Eigen::MatrixXf::RowsAtCompileTime, Eigen::MatrixXf::ColsAtCompileTime, Eigen::RowMajor>>(values.data(), rows, values.size() / rows);
 }
 
 int main() 
@@ -89,36 +89,78 @@ int main()
     typedef VehicleCameraBase::ImageType_ ImageType_;
     typedef common_utils::FileSystem FileSystem;
     
+	// Read in waypoints from file.
+	Eigen::MatrixXf waypoints;
+	std::string filename = "C:/Users/gawela/Documents/AirSim/waypoints.csv";
+	readMatrixFromFile(filename, &waypoints);
+	std::cout << "Num waypoints: " << waypoints.rows() << " " << waypoints.cols() << std::endl;
+
+	// Send drone to waypoint after qaypoint and record data at each location.
     try {
         client.confirmConnection();
+		std::cout << "Connection confirmed." << std::endl;
+
+		for (int i = 0; i < waypoints.rows(); ++i) {
+			std::cout << "Choosing destrination." << std::endl;
+			Eigen::Matrix<float, 1, 7> next_destination = waypoints.row(i);
+			std::cout << "Flying to next location: " << next_destination << std::endl;
+			// Send drone to position.
+			msr::airlib::Vector3r destination_translation(next_destination(0), next_destination(1), next_destination(2));
+			client.simSetPose(destination_translation, msr::airlib::Quaternionr(next_destination(3), next_destination(4), next_destination(5), next_destination(6)));
+			// Wait for the drone to arrive.
+			// todo(gawela) Check that Drone is in place.
+			std::this_thread::sleep_for(std::chrono::duration<double>(5));
+			// Take images of scene.
+			std::cout << "Taking images." << std::endl;
+			std::vector<ImageRequest> request = { ImageRequest(0, ImageType_::Scene), ImageRequest(0, ImageType_::Depth),  ImageRequest(0, ImageType_::Segmentation) };
+			std::vector<ImageResponse> response = client.simGetImages(request);
+			std::cout << "Done." << std::endl;
+			// Save all data to disk (pose from waypoints and images).
+			std::cout << "Saving image to file." << std::endl;
+			std::string path = "C:/Users/gawela/Documents/";
+			for (const ImageResponse& image_info : response) {
+				std::cout << "Image size: " << image_info.image_data.size() << std::endl;
+				if (path != "") {
+					std::ofstream file(FileSystem::combine(path, std::to_string(image_info.time_stamp) + ".png"), std::ios::binary);
+				    file.write(reinterpret_cast<const char*>(image_info.image_data.data()), image_info.image_data.size());
+				    file.close();
+				}
+			}
+			std::cout << "Done." << std::endl;
+			std::this_thread::sleep_for(std::chrono::duration<double>(5));
+
+
+
+
+		}
 		
-		vector<ImageRequest> request = { ImageRequest(0, ImageType_::Scene), ImageRequest(1, ImageType_::Depth) };
-		const vector<ImageResponse>& response = client.simGetImages(request);
+		//vector<ImageRequest> request = { ImageRequest(0, ImageType_::Scene), ImageRequest(1, ImageType_::Depth) };
+		//const vector<ImageResponse>& response = client.simGetImages(request);
 
-		RandomPointPoseGenerator pose_generator(1);
-		pose_generator.next();
-		std::cout << "command position: " << pose_generator.position << std::endl;
-		client.simSetPose(pose_generator.position, pose_generator.orientation);
+		//RandomPointPoseGenerator pose_generator(1);
+		//pose_generator.next();
+		//std::cout << "command position: " << pose_generator.position << std::endl;
+		//client.simSetPose(pose_generator.position, pose_generator.orientation);
 
-        std::cout << "Press Enter to get FPV image" << std::endl; std::cin.get();
-       // vector<ImageRequest> request = { ImageRequest(0, ImageType_::Scene), ImageRequest(1, ImageType_::Depth) };
-       // const vector<ImageResponse>& response = client.simGetImages(request);
-        std::cout << "# of images recieved: " << response.size() << std::endl;
+  //      std::cout << "Press Enter to get FPV image" << std::endl; std::cin.get();
+  //     // vector<ImageRequest> request = { ImageRequest(0, ImageType_::Scene), ImageRequest(1, ImageType_::Depth) };
+  //     // const vector<ImageResponse>& response = client.simGetImages(request);
+  //      std::cout << "# of images recieved: " << response.size() << std::endl;
 
-        if (response.size() > 0) {
-            std::cout << "Enter path with ending separator to save images (leave empty for no save)" << std::endl; 
-            std::string path;
-            std::getline(std::cin, path);
+  //      if (response.size() > 0) {
+  //          std::cout << "Enter path with ending separator to save images (leave empty for no save)" << std::endl; 
+  //          std::string path;
+  //          std::getline(std::cin, path);
 
-            for (const ImageResponse& image_info : response) {
-                std::cout << "Image size: " << image_info.image_data.size() << std::endl;
-                if (path != "") {
-                    std::ofstream file(FileSystem::combine(path, std::to_string(image_info.time_stamp) + ".png"), std::ios::binary);
-                    file.write(reinterpret_cast<const char*>(image_info.image_data.data()), image_info.image_data.size());
-                    file.close();
-                }
-            }
-        }
+  //          for (const ImageResponse& image_info : response) {
+  //              std::cout << "Image size: " << image_info.image_data.size() << std::endl;
+  //              if (path != "") {
+  //                  std::ofstream file(FileSystem::combine(path, std::to_string(image_info.time_stamp) + ".png"), std::ios::binary);
+  //                  file.write(reinterpret_cast<const char*>(image_info.image_data.data()), image_info.image_data.size());
+  //                  file.close();
+  //              }
+  //          }
+  //      }
 
         //std::cout << "press enter to arm the drone" << std::endl; std::cin.get();
         //client.armdisarm(true);
