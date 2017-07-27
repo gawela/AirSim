@@ -91,7 +91,7 @@ int main()
     
 	// Read in waypoints from file.
 	Eigen::MatrixXf waypoints;
-	std::string filename = "C:/Users/gawela/Documents/AirSim/waypoints.csv";
+	std::string filename = "C:/Users/gawela/Documents/neighbourhood/waypoints_neighbourhood_downward.csv";
 	readMatrixFromFile(filename, &waypoints);
 	std::cout << "Num waypoints: " << waypoints.rows() << " " << waypoints.cols() << std::endl;
 
@@ -109,7 +109,7 @@ int main()
 			client.simSetPose(destination_translation, msr::airlib::Quaternionr(next_destination(3), next_destination(4), next_destination(5), next_destination(6)));
 			// Wait for the drone to arrive.
 			// todo(gawela) Check that Drone is in place.
-			std::this_thread::sleep_for(std::chrono::duration<double>(5));
+			//std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
 			// Take images of scene.
 			std::cout << "Taking images." << std::endl;
 			std::vector<ImageRequest> request = { ImageRequest(0, ImageType_::Scene), ImageRequest(0, ImageType_::Depth),  ImageRequest(0, ImageType_::Segmentation) };
@@ -117,93 +117,37 @@ int main()
 			std::cout << "Done." << std::endl;
 			// Save all data to disk (pose from waypoints and images).
 			std::cout << "Saving image to file." << std::endl;
-			std::string path = "C:/Users/gawela/Documents/";
+			std::string path = "D:/airsim_datasets/neighbourhood_downward/";
+			int j = 0;
 			for (const ImageResponse& image_info : response) {
 				std::cout << "Image size: " << image_info.image_data.size() << std::endl;
 				if (path != "") {
-					std::ofstream file(FileSystem::combine(path, std::to_string(image_info.time_stamp) + ".png"), std::ios::binary);
-				    file.write(reinterpret_cast<const char*>(image_info.image_data.data()), image_info.image_data.size());
-				    file.close();
+					if (j == 0) {
+						std::ofstream file(FileSystem::combine(path, "rgb_" + std::to_string(i) + ".png"), std::ios::binary);
+						file.write(reinterpret_cast<const char*>(image_info.image_data.data()), image_info.image_data.size());
+						file.close();
+						++j;
+					} else if (j == 1) {
+						std::ofstream file(FileSystem::combine(path, "depth_" + std::to_string(i) + ".png"), std::ios::binary);
+						file.write(reinterpret_cast<const char*>(image_info.image_data.data()), image_info.image_data.size());
+						file.close();
+						++j;
+					} else if (j == 2) {
+						std::ofstream file(FileSystem::combine(path, "segmentation_" + std::to_string(i) + ".png"), std::ios::binary);
+						file.write(reinterpret_cast<const char*>(image_info.image_data.data()), image_info.image_data.size());
+						file.close();
+						++j;
+					}
 				}
 			}
 			std::cout << "Done." << std::endl;
-			std::this_thread::sleep_for(std::chrono::duration<double>(5));
+			//std::this_thread::sleep_for(std::chrono::duration<double>(0.5));
 
 
 
 
 		}
 		
-		//vector<ImageRequest> request = { ImageRequest(0, ImageType_::Scene), ImageRequest(1, ImageType_::Depth) };
-		//const vector<ImageResponse>& response = client.simGetImages(request);
-
-		//RandomPointPoseGenerator pose_generator(1);
-		//pose_generator.next();
-		//std::cout << "command position: " << pose_generator.position << std::endl;
-		//client.simSetPose(pose_generator.position, pose_generator.orientation);
-
-  //      std::cout << "Press Enter to get FPV image" << std::endl; std::cin.get();
-  //     // vector<ImageRequest> request = { ImageRequest(0, ImageType_::Scene), ImageRequest(1, ImageType_::Depth) };
-  //     // const vector<ImageResponse>& response = client.simGetImages(request);
-  //      std::cout << "# of images recieved: " << response.size() << std::endl;
-
-  //      if (response.size() > 0) {
-  //          std::cout << "Enter path with ending separator to save images (leave empty for no save)" << std::endl; 
-  //          std::string path;
-  //          std::getline(std::cin, path);
-
-  //          for (const ImageResponse& image_info : response) {
-  //              std::cout << "Image size: " << image_info.image_data.size() << std::endl;
-  //              if (path != "") {
-  //                  std::ofstream file(FileSystem::combine(path, std::to_string(image_info.time_stamp) + ".png"), std::ios::binary);
-  //                  file.write(reinterpret_cast<const char*>(image_info.image_data.data()), image_info.image_data.size());
-  //                  file.close();
-  //              }
-  //          }
-  //      }
-
-        //std::cout << "press enter to arm the drone" << std::endl; std::cin.get();
-        //client.armdisarm(true);
-
-        //std::cout << "press enter to takeoff" << std::endl; std::cin.get();
-        //float takeofftimeout = 5; 
-        //client.takeoff(takeofftimeout);
-
-        //// switch to explicit hover mode so that this is the fallback when 
-        //// move* commands are finished.
-        //std::this_thread::sleep_for(std::chrono::duration<double>(5));
-        //client.hover();
-
-        //std::cout << "press enter to fly in a 10m box pattern at 1 m/s velocity" << std::endl; std::cin.get();
-        //// movebyvelocityz is an offboard operation, so we need to set offboard mode.
-        //client.setoffboardmode(true); 
-        //auto position = client.getposition();
-        //float z = position.z(); // current position (ned coordinate system).  
-        //const float speed = 1.0f;
-        //const float size = 10.0f; 
-        //const float duration = size / speed;
-        //drivetraintype drivetrain = drivetraintype::forwardonly;
-        //yawmode yaw_mode(false, 0);
-        //std::cout << "movebyvelocityz(" << speed << ", 0, " << z << "," << duration << ")" << std::endl;
-        //client.movebyvelocityz(speed, 0, z, duration, drivetrain, yaw_mode);
-        //std::this_thread::sleep_for(std::chrono::duration<double>(duration));
-        //std::cout << "movebyvelocityz(0, " << speed << "," << z << "," << duration << ")" << std::endl;
-        //client.movebyvelocityz(0, speed, z, duration, drivetrain, yaw_mode);
-        //std::this_thread::sleep_for(std::chrono::duration<double>(duration));
-        //std::cout << "movebyvelocityz(" << -speed << ", 0, " << z << "," << duration << ")" << std::endl;
-        //client.movebyvelocityz(-speed, 0, z, duration, drivetrain, yaw_mode);
-        //std::this_thread::sleep_for(std::chrono::duration<double>(duration));
-        //std::cout << "movebyvelocityz(0, " << -speed << "," << z << "," << duration << ")" << std::endl;
-        //client.movebyvelocityz(0, -speed, z, duration, drivetrain, yaw_mode);
-        //std::this_thread::sleep_for(std::chrono::duration<double>(duration));
-
-        //client.hover();
-
-        //std::cout << "press enter to land" << std::endl; std::cin.get();
-        //client.land();
-
-        //std::cout << "press enter to disarm" << std::endl; std::cin.get();
-        //client.armdisarm(false);
 
     }
     catch (rpc::rpc_error&  e) {
